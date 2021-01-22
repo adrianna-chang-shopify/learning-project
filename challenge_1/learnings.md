@@ -1,5 +1,8 @@
 # Learnings from Challenge 1
 * TCP = protocol for applications to talk to one another over a network
+  * Reliable: handles packets coming in the wrong order, or packets being lost
+  * Handles lost packets by failing to send an acknowledgment back to the server.
+  * Server then knows to retry sending the data.
 * TCP establishes a connection between a server and a client
 * TCP connection needs an IP address and a port
   * "I want to start talking TCP to <some ip address> on port <some port number>"
