@@ -11,28 +11,28 @@ loop do
   puts "Got a new client!"
   
   # Read the request line
-  # Do I need the chomp? Seems to work fine without it
+  # Chomp is not strictly needed given our use of String#split (which discards
+  # the CLRF for us automatically), but it's nice to encapsulate the reading
+  # of this request line into a single line of code that ensures it is cleaned
+  # up appropriately (no surprises later on!)
   request_line = client.readline.chomp
-  request_line_split = request_line.split(' ')
-
   puts "Parsing HTTP request!"
+  method, target, http_version = request_line.split
 
   puts "\n"
   puts "-" * 90
   puts "\n"
 
-  puts "Request method: #{request_line_split[0]}"
-  puts "Request target: #{request_line_split[1]}"
-  puts "HTTP Version: #{request_line_split[2]}"
+  puts "Request method: #{method}"
+  puts "Request target: #{target}"
+  puts "HTTP Version: #{http_version}"
 
-  puts "\n"
-  puts "-" * 90
-  puts "\n"
+  client.close
 
   # Read the rest of the HTTP message
-  # Are these all headers?
-  puts "Getting rest of HTTP message"
-  while !client.eof?
-    puts client.readline
-  end
+  # The rest is all headers
+  # We'll ignore this for now since we just want the request line
+  # while !client.eof?
+  #   puts client.readline
+  # end
 end
