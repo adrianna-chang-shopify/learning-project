@@ -27,12 +27,12 @@ loop do
   puts "Request target: #{target}"
   puts "HTTP Version: #{http_version}"
 
-  client.close
+  # client.close
 
   # Read the rest of the HTTP message
   # The rest is all headers
   # We'll ignore this for now since we just want the request line
-  # while !client.eof?
-  #   puts client.readline
-  # end
+  while !client.eof?
+    puts client.readline
+  end
 end
