@@ -8,6 +8,16 @@ server = TCPServer.new 1234
 # "A request is what a browser will send to your application when you visit a
 #   URL like http://localhost:1234/my/awesome/path."
 
+# More info here: https://tools.ietf.org/html/rfc7231#section-6
+status_codes = {
+  ok: 200
+}
+
+# Accompanying text for status codes
+status_codes_text = {
+  ok: 'OK'
+}
+
 loop do
   # Accept a client connection
   client = server.accept
