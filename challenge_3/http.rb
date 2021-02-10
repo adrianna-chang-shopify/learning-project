@@ -1,5 +1,7 @@
 require 'socket'
 
+$stdout.sync = true
+
 server = TCPServer.new 1234
 
 # "A request is what a browser will send to your application when you visit a
