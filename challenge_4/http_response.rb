@@ -6,14 +6,16 @@ server = TCPServer.new 1234
 #   URL like http://localhost:1234/my/awesome/path."
 
 # More info here: https://tools.ietf.org/html/rfc7231#section-6
-status_codes = {
+STATUS_CODES = {
   ok: 200
 }
 
 # Accompanying text for status codes
-status_codes_text = {
+STATUS_CODES_TEXT = {
   ok: 'OK'
 }
+
+HTTP_VERSION = 'HTTP/1.1'
 
 loop do
   # Accept a client connection
@@ -33,13 +35,17 @@ loop do
   #   Question: Can you make this whatever you want, or will the client expect
   #   the status code to match a given piece of text? When would you ever send
   #   a "non-typical" piece of text here?
-  status_line = "#{http_version} #{status_codes[:ok]} #{status_codes_text[:ok]}\n"
+  #   Answer: This piece of text doesn't really do anything! HTTP clients are expected to ignore it.
+  #   It comes earlier from an era of Internet application protocols that were more frequently used with
+  #   interactive text clients.
+  # - A CRLF
+  status_line = "#{HTTP_VERSION} #{STATUS_CODES[:ok]} #{STATUS_CODES_TEXT[:ok]}\r\n"
 
   # Feedback from Tom on whether my understanding here is correct:
-  # If you have multiple headers, they would each be on separate lines (ie. with a new
-  # line at the end of each header field)
-  # Then, we need ANOTHER new line to separate the set of header fields from the message body (see L55)
-  header_field = "Content-Type: text/plain\n"
+  # If you have multiple headers, they would each be on separate lines (ie. with a CRLF
+  # at the end of each header field)
+  # Then, we need ANOTHER CRLF to separate the set of header fields from the message body (see L55)
+  header_field = "Content-Type: text/plain\r\n"
 
   # Build the message body
   # From Tom in the doc: "The message body of a response message will be displayed by the browser"
@@ -50,8 +56,8 @@ loop do
   # Send response to client
   client.write(status_line)
   client.write(header_field)
-  # New line to separate the headers from the message body
-  client.write("\n")
+  # CRLF to separate the headers from the message body
+  client.write("\r\n")
   client.write(message_body)
 
   client.close
