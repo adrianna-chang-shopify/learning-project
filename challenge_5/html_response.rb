@@ -1,8 +1,9 @@
+### Require dependencies
 require 'socket'
 require 'cgi'
 
-server = TCPServer.new 1234
-
+### Define some constants ###
+#############################
 # More info here: https://tools.ietf.org/html/rfc7231#section-6
 STATUS_CODES = {
   ok: 200
@@ -15,18 +16,22 @@ STATUS_CODES_TEXT = {
 
 HTTP_VERSION = 'HTTP/1.1'
 
-def data
-  [
-    {
-      title: 'My awesome blog!',
-      content: 'my favourite HTML tags are <p> and <script>'
-    },
-    {
-      title: 'Another cool blog!',
-      content: 'my favourite HTML tags are <br> and <hr>'
-    }
-  ]
-end
+BLOG_DATA = 
+[
+  {
+    title: 'My awesome blog!',
+    content: 'my favourite HTML tags are <p> and <script>'
+  },
+  {
+    title: 'Another cool blog!',
+    content: 'my favourite HTML tags are <br> and <hr>'
+  }
+]
+
+CRLF = "\r\n"
+#############################
+
+server = TCPServer.new 1234
 
 loop do
   # Accept a client connection
@@ -39,7 +44,7 @@ loop do
   method, target, http_version = request_line.split
 
   puts "Building response for client!"
-  status_line = "#{HTTP_VERSION} #{STATUS_CODES[:ok]} #{STATUS_CODES_TEXT[:ok]}\r\n"
+  status_line = "#{HTTP_VERSION} #{STATUS_CODES[:ok]} #{STATUS_CODES_TEXT[:ok]}"
 
   # Check request target to determine what to render for message body / headers
   if target == '/show-data'
@@ -47,7 +52,7 @@ loop do
     header_field = "Content-Type: text/html\r\n"
     message_body = ""
     message_body << "<ul>"
-    data.each do |element|
+    BLOG_DATA.each do |element|
       message_body << "<li>"
       message_body << "<strong>Title: #{CGI.escape_html(element[:title])}</strong>, Content: #{CGI.escape_html(element[:content])}"
       message_body << "</li>"
@@ -59,10 +64,10 @@ loop do
   end
 
   # Send response to client
-  client.write(status_line)
-  client.write(header_field)
+  client.write(status_line + CRLF)
+  client.write(header_field + CRLF)
   # CRLF to separate the headers from the message body
-  client.write("\r\n")
+  client.write(CRLF)
   client.write(message_body)
 
   client.close
