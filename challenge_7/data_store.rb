@@ -31,6 +31,19 @@ server = TCPServer.new 1234
 # Retrieve data from our YAML store
 store = YAML::Store.new(File.expand_path('blogs.yml', __dir__))
 
+store.transaction do
+  store[:blogs] = [] if store[:blogs].nil?
+end
+
+# Seed some blog data
+# Comment out if you'd like to start from scratch!
+store.transaction do
+  if store[:blogs].empty?
+    store[:blogs] << Blog.new(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>')
+    store[:blogs] << Blog.new(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
+  end
+end
+
 loop do
   # Accept a client connection
   client = server.accept
