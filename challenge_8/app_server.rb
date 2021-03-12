@@ -1,33 +1,18 @@
 ### Require dependencies
-require 'socket'
 require 'cgi'
 require 'uri'
 require 'yaml/store'
+require 'rack/handler/puma'
 
-### Define some constants ###
-#############################
-# More info here: https://tools.ietf.org/html/rfc7231#section-6
+### Status codes
 STATUS_CODES = {
   ok: 200,
   see_other: 303
 }
 
-# Accompanying text for status codes
-STATUS_CODES_TEXT = {
-  ok: 'OK',
-  see_other: 'See Other'
-}
-
-HTTP_VERSION = 'HTTP/1.1'
-
 # Struct to define what a Blog looks like
 Blog = Struct.new(:title, :content, keyword_init: true)
 
-CRLF = "\r\n"
-#############################
-
-# Start a TCP Server on port 1234
-server = TCPServer.new 1234
 # Retrieve data from our YAML store
 store = YAML::Store.new(File.expand_path('blogs.yml', __dir__))
 
@@ -44,86 +29,71 @@ store.transaction do
   end
 end
 
-loop do
-  # Accept a client connection
-  client = server.accept
-  puts 'Got a new client!'
+app = lambda { |environment|
+  puts 'Rack app got a request!'
+  request_method = environment['REQUEST_METHOD']
+  request_path   = environment['PATH_INFO']
 
-  # Read the request line
-  request_line = client.readline.chomp
-  puts 'Parsing HTTP request!'
-  method, target, http_version = request_line.split
-
-  puts 'Building response for client!'
-  # Check method type and request target to determine what to send back to client
-  case [method, target]
+  headers = {}
+  body = []
+  case [request_method, request_path]
   when ['GET', '/show-data']
-    message_body = ''
-    message_body << '<ul>'
-
-    # Transaction in case someone writes to the store in between our reads,
-    # and the data is no longer consistent
+    body << '<ul>'
     blog_data = store.transaction { store[:blogs] }
     blog_data.each do |element|
-      message_body << '<li>'
-      message_body << "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
-      message_body << '</li>'
+      body << '<li>'
+      body << "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
+      body << '</li>'
     end
-    message_body << '</ul>'
+    body << '</ul>'
 
-    # Prepare response
-    status_code = :ok
-    header_field = 'Content-Type: text/html'
+    status = STATUS_CODES[:ok]
+    headers['Content-Type'] = 'text/html'
   when ['POST', '/create-post']
-    puts 'Got a new POST request!'
-    headers = {}
-    line = client.readline
-    while (line = client.readline) != CRLF
-      header_name, _, header_value = line.chomp.partition(': ')
-      headers[header_name] = header_value
-    end
-    content_length = headers['Content-Length']
-    body = client.read(content_length.to_i)
-    fields = URI.decode_www_form(body)
-    post = Blog.new
-    fields.each do |name, value|
-      post[name] = value
-    end
+      puts 'Got a new POST request!'
 
-    store.transaction do
-      store[:blogs] << post
-    end
+      # We no longer need content length, as the StringIO object allows us to read until the EOF without blocking
+      # (Puma handles reading the exact content length from the TCP socket behind the scenes for us).
+      # We know this is a small request, so we can read the entire IO object - however, this could very well be a 
+      # large request (ie. recall file uploads), in which case  we would want to limit the amount of data read at a time
+      # in order to not exhaust our program's memory.
+      # Tom & I explored Puma code here to see how Puma handles reading the body from the TCP Server for large streams of
+      # data (TLDR: Tempfile!)
+      # https://github.com/puma/puma/blob/master/lib/puma/client.rb#L280-L304
+      # https://github.com/puma/puma/blob/7970d14e63836d1c47a086928e533eee766af48d/lib/puma/const.rb#L159-L160
+      message_body = environment['rack.input'].read
+
+      fields = URI.decode_www_form(message_body)
+      post = Blog.new
+      fields.each do |name, value|
+        post[name] = value
+      end
+
+      store.transaction do
+        store[:blogs] << post
+      end
+
+      # Prepare response
+      status = STATUS_CODES[:see_other]
+      headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
+  when ['GET', '/']
+    body << '<p><strong>Submit a new Blog Post!</p></strong>'
+    body << "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
+    body << "<p><label>Blog Title: <input name='title'></label></p>"
+    body << "<p><label>Content: <textarea name='content'></textarea></label></p>"
+    body << '<p><button>Submit post</button></p>'
+    body << '</form>'
 
     # Prepare response
-    status_code = :see_other
-    header_field = 'Location: /show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
+    status = STATUS_CODES[:ok]
+    headers['Content-Type'] = 'text/html'
   else
-    # Main Page
-    message_body =  ''
-    message_body << '<p><strong>Submit a new Blog Post!</p></strong>'
-    # Method = POST
-    # Encoding type = application/x-www-form-urlencoded (usual encoding system, Ruby has built-in decoder)
-    # Action = /create-post (Seems like this just needs to be a relative target path, but docs use full URL)
-    message_body << "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-    message_body << "<p><label>Blog Title: <input name='title'></label></p>"
-    message_body << "<p><label>Content: <textarea name='content'></textarea></label></p>"
-    message_body << '<p><button>Submit post</button></p>'
-    message_body << '</form>'
-
-    # Prepare response
-    status_code = :ok
-    header_field = 'Content-Type: text/html'
+    body << "method is #{request_method}, path is #{request_path}"
+    status = STATUS_CODES[:ok]
+    headers['Content-Type'] = 'text/plain'
   end
 
-  # Build our status line using whichever status_code we've set
-  status_line = "#{HTTP_VERSION} #{STATUS_CODES[status_code]} #{STATUS_CODES_TEXT[status_code]}"
+  [status, headers, body]
+}
 
-  # Send response to client
-  client.write(status_line + CRLF)
-  client.write(header_field + CRLF)
-  # CRLF to separate the headers from the message body
-  client.write(CRLF)
-  client.write(message_body)
-
-  client.close
-end
+Rack::Handler::Puma.run(app)
