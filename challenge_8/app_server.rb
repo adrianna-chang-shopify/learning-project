@@ -2,6 +2,7 @@
 require 'cgi'
 require 'uri'
 require 'yaml/store'
+require 'rack'
 require 'rack/handler/puma'
 
 ### Status codes
@@ -47,35 +48,35 @@ app = lambda { |environment|
     end
     body << '</ul>'
 
-    status = STATUS_CODES[:ok]
+    status = :ok
     headers['Content-Type'] = 'text/html'
   when ['POST', '/create-post']
-      puts 'Got a new POST request!'
+    puts 'Got a new POST request!'
 
-      # We no longer need content length, as the StringIO object allows us to read until the EOF without blocking
-      # (Puma handles reading the exact content length from the TCP socket behind the scenes for us).
-      # We know this is a small request, so we can read the entire IO object - however, this could very well be a 
-      # large request (ie. recall file uploads), in which case  we would want to limit the amount of data read at a time
-      # in order to not exhaust our program's memory.
-      # Tom & I explored Puma code here to see how Puma handles reading the body from the TCP Server for large streams of
-      # data (TLDR: Tempfile!)
-      # https://github.com/puma/puma/blob/master/lib/puma/client.rb#L280-L304
-      # https://github.com/puma/puma/blob/7970d14e63836d1c47a086928e533eee766af48d/lib/puma/const.rb#L159-L160
-      message_body = environment['rack.input'].read
+    # We no longer need content length, as the StringIO object allows us to read until the EOF without blocking
+    # (Puma handles reading the exact content length from the TCP socket behind the scenes for us).
+    # We know this is a small request, so we can read the entire IO object - however, this could very well be a 
+    # large request (ie. recall file uploads), in which case  we would want to limit the amount of data read at a time
+    # in order to not exhaust our program's memory.
+    # Tom & I explored Puma code here to see how Puma handles reading the body from the TCP Server for large streams of
+    # data (TLDR: Tempfile!)
+    # https://github.com/puma/puma/blob/master/lib/puma/client.rb#L280-L304
+    # https://github.com/puma/puma/blob/7970d14e63836d1c47a086928e533eee766af48d/lib/puma/const.rb#L159-L160
+    message_body = environment['rack.input'].read
 
-      fields = URI.decode_www_form(message_body)
-      post = Blog.new
-      fields.each do |name, value|
-        post[name] = value
-      end
+    fields = URI.decode_www_form(message_body)
+    post = Blog.new
+    fields.each do |name, value|
+      post[name] = value
+    end
 
-      store.transaction do
-        store[:blogs] << post
-      end
+    store.transaction do
+      store[:blogs] << post
+    end
 
-      # Prepare response
-      status = STATUS_CODES[:see_other]
-      headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
+    # Prepare response
+    status = :see_other
+    headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
   when ['GET', '/']
     body << '<p><strong>Submit a new Blog Post!</p></strong>'
     body << "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
@@ -85,15 +86,15 @@ app = lambda { |environment|
     body << '</form>'
 
     # Prepare response
-    status = STATUS_CODES[:ok]
+    status = :ok
     headers['Content-Type'] = 'text/html'
   else
     body << "method is #{request_method}, path is #{request_path}"
-    status = STATUS_CODES[:ok]
+    status = :ok
     headers['Content-Type'] = 'text/plain'
   end
 
-  [status, headers, body]
+  [STATUS_CODES[status], headers, body]
 }
 
-Rack::Handler::Puma.run(app)
+Rack::Handler::Puma.run(app, Port: 1234, Verbose: true)
