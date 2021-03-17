@@ -1,9 +1,9 @@
 ### Require dependencies
 require 'cgi'
+require 'rack/handler/puma'
+require 'rack'
 require 'uri'
 require 'yaml/store'
-require 'rack'
-require 'rack/handler/puma'
 
 ### Status codes
 STATUS_CODES = {
@@ -14,31 +14,35 @@ STATUS_CODES = {
 # Struct to define what a Blog looks like
 Blog = Struct.new(:title, :content, keyword_init: true)
 
-# Retrieve data from our YAML store
-store = YAML::Store.new(File.expand_path('blogs.yml', __dir__))
-
-store.transaction do
-  store[:blogs] = [] if store[:blogs].nil?
-end
-
-# Seed some blog data
-# Comment out if you'd like to start from scratch!
-store.transaction do
-  if store[:blogs].empty?
-    store[:blogs] << Blog.new(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>')
-    store[:blogs] << Blog.new(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
+def set_up_blogs_store(store_path)
+  store = YAML::Store.new(File.expand_path(store_path, __dir__))
+  store.transaction do
+    store[:blogs] = [] if store[:blogs].nil?
   end
+  
+  # Seed some blog data
+  # Comment out if you'd like to start from scratch!
+  store.transaction do
+    if store[:blogs].empty?
+      store[:blogs] << Blog.new(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>')
+      store[:blogs] << Blog.new(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
+    end
+  end
+  store
 end
+
+# Set up YAML store
+store = set_up_blogs_store('blogs.yml')
 
 app = lambda { |environment|
   puts 'Rack app got a request!'
-  request_method = environment['REQUEST_METHOD']
-  request_path   = environment['PATH_INFO']
+  # Build Rack request
+  request = Rack::Request.new(environment)
 
   headers = {}
   body = []
-  case [request_method, request_path]
-  when ['GET', '/show-data']
+
+  if request.get? && request.path == '/show-data'
     body << '<ul>'
     blog_data = store.transaction { store[:blogs] }
     blog_data.each do |element|
@@ -48,36 +52,10 @@ app = lambda { |environment|
     end
     body << '</ul>'
 
+    # Prepare response
     status = :ok
     headers['Content-Type'] = 'text/html'
-  when ['POST', '/create-post']
-    puts 'Got a new POST request!'
-
-    # We no longer need content length, as the StringIO object allows us to read until the EOF without blocking
-    # (Puma handles reading the exact content length from the TCP socket behind the scenes for us).
-    # We know this is a small request, so we can read the entire IO object - however, this could very well be a 
-    # large request (ie. recall file uploads), in which case  we would want to limit the amount of data read at a time
-    # in order to not exhaust our program's memory.
-    # Tom & I explored Puma code here to see how Puma handles reading the body from the TCP Server for large streams of
-    # data (TLDR: Tempfile!)
-    # https://github.com/puma/puma/blob/master/lib/puma/client.rb#L280-L304
-    # https://github.com/puma/puma/blob/7970d14e63836d1c47a086928e533eee766af48d/lib/puma/const.rb#L159-L160
-    message_body = environment['rack.input'].read
-
-    fields = URI.decode_www_form(message_body)
-    post = Blog.new
-    fields.each do |name, value|
-      post[name] = value
-    end
-
-    store.transaction do
-      store[:blogs] << post
-    end
-
-    # Prepare response
-    status = :see_other
-    headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
-  when ['GET', '/']
+  elsif request.get? && request.path == '/'
     body << '<p><strong>Submit a new Blog Post!</p></strong>'
     body << "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
     body << "<p><label>Blog Title: <input name='title'></label></p>"
@@ -88,10 +66,25 @@ app = lambda { |environment|
     # Prepare response
     status = :ok
     headers['Content-Type'] = 'text/html'
-  else
-    body << "method is #{request_method}, path is #{request_path}"
+  elsif request.get?
+    body << "method is #{request.request_method}, path is #{request.path}"
     status = :ok
     headers['Content-Type'] = 'text/plain'
+  elsif request.post? && request.path == '/create-post'
+    puts 'Got a new POST request!'
+
+    post = Blog.new
+    request.params.each do |name, value|
+      post[name] = value
+    end
+
+    store.transaction do
+      store[:blogs] << post
+    end
+
+    # Prepare response
+    status = :see_other
+    headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
   end
 
   [STATUS_CODES[status], headers, body]
