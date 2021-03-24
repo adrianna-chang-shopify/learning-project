@@ -37,17 +37,20 @@ app = lambda { |environment|
   response = Rack::Response.new
 
   if request.get? && request.path == '/show-data'
-   response.write '<ul>'
-    blog_data = store.transaction { store[:blogs] }
-    blog_data.each do |element|
-     response.write '<li>'
-     response.write "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
-     response.write '</li>'
-    end
-   response.write '</ul>'
-
-    # Prepare response
     response.content_type = 'text/html'
+    response.finish do
+      response.write '<ul>'
+      blog_data = store.transaction { store[:blogs] }
+      loop do
+        blog_data.each do |element|
+          response.write '<li>'
+          response.write "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
+          response.write '</li>'
+        end
+        sleep(1)
+      end
+     response.write '</ul>'
+    end
   elsif request.get? && request.path == '/'
     response.write '<p><strong>Submit a new Blog Post!</p></strong>'
     response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
@@ -58,9 +61,11 @@ app = lambda { |environment|
 
     # Prepare response
     response.content_type = 'text/html'
+    response.finish
   elsif request.get?
     response.write "method is #{request.request_method}, path is #{request.path}"
     response.content_type = 'text/plain'
+    response.finish
   elsif request.post? && request.path == '/create-post'
     puts 'Got a new POST request!'
 
@@ -75,9 +80,8 @@ app = lambda { |environment|
 
     # Prepare response
     response.redirect('/show-data', 303)
+    response.finish
   end
-
-  response.finish
 }
 
 # Run the Puma app server with our web application
