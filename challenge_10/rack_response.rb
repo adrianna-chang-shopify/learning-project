@@ -5,12 +5,6 @@ require 'rack'
 require 'uri'
 require 'yaml/store'
 
-### Status codes
-STATUS_CODES = {
-  ok: 200,
-  see_other: 303
-}
-
 # Struct to define what a Blog looks like
 Blog = Struct.new(:title, :content, keyword_init: true)
 
@@ -39,37 +33,34 @@ app = lambda { |environment|
   # Build Rack request
   request = Rack::Request.new(environment)
 
-  headers = {}
-  body = []
+  # Build Rack response
+  response = Rack::Response.new
 
   if request.get? && request.path == '/show-data'
-    body << '<ul>'
+   response.write '<ul>'
     blog_data = store.transaction { store[:blogs] }
     blog_data.each do |element|
-      body << '<li>'
-      body << "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
-      body << '</li>'
+     response.write '<li>'
+     response.write "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
+     response.write '</li>'
     end
-    body << '</ul>'
+   response.write '</ul>'
 
     # Prepare response
-    status = :ok
-    headers['Content-Type'] = 'text/html'
+    response.content_type = 'text/html'
   elsif request.get? && request.path == '/'
-    body << '<p><strong>Submit a new Blog Post!</p></strong>'
-    body << "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-    body << "<p><label>Blog Title: <input name='title'></label></p>"
-    body << "<p><label>Content: <textarea name='content'></textarea></label></p>"
-    body << '<p><button>Submit post</button></p>'
-    body << '</form>'
+    response.write '<p><strong>Submit a new Blog Post!</p></strong>'
+    response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
+    response.write "<p><label>Blog Title: <input name='title'></label></p>"
+    response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
+    response.write '<p><button>Submit post</button></p>'
+    response.write '</form>'
 
     # Prepare response
-    status = :ok
-    headers['Content-Type'] = 'text/html'
+    response.content_type = 'text/html'
   elsif request.get?
-    body << "method is #{request.request_method}, path is #{request.path}"
-    status = :ok
-    headers['Content-Type'] = 'text/plain'
+    response.write "method is #{request.request_method}, path is #{request.path}"
+    response.content_type = 'text/plain'
   elsif request.post? && request.path == '/create-post'
     puts 'Got a new POST request!'
 
@@ -83,11 +74,11 @@ app = lambda { |environment|
     end
 
     # Prepare response
-    status = :see_other
-    headers['Location'] = '/show-data' # NOTE: Don't need a Content-Type here, we're redirecting!
+    response.redirect('/show-data', 303)
   end
 
-  [STATUS_CODES[status], headers, body]
+  response.finish
 }
 
+# Run the Puma app server with our web application
 Rack::Handler::Puma.run(app, Port: 1234, Verbose: true)
