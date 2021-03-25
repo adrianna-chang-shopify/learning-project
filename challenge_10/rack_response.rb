@@ -2,7 +2,6 @@
 require 'cgi'
 require 'rack/handler/puma'
 require 'rack'
-require 'uri'
 require 'yaml/store'
 
 # Struct to define what a Blog looks like
@@ -49,7 +48,7 @@ app = lambda { |environment|
         end
         sleep(1)
       end
-     response.write '</ul>'
+      response.write '</ul>'
     end
   elsif request.get? && request.path == '/'
     response.write '<p><strong>Submit a new Blog Post!</p></strong>'
