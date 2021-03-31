@@ -2,30 +2,31 @@
 require 'cgi'
 require 'rack/handler/puma'
 require 'rack'
-require 'yaml/store'
+require 'sqlite3'
 
 # Struct to define what a Blog looks like
 Blog = Struct.new(:title, :content, keyword_init: true)
 
-def set_up_blogs_store(store_path)
-  store = YAML::Store.new(File.expand_path(store_path, __dir__))
-  store.transaction do
-    store[:blogs] = [] if store[:blogs].nil?
-  end
-  
-  # Seed some blog data
-  # Comment out if you'd like to start from scratch!
-  store.transaction do
-    if store[:blogs].empty?
-      store[:blogs] << Blog.new(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>')
-      store[:blogs] << Blog.new(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
-    end
-  end
-  store
+SEED_BLOGS = [
+  Blog.new(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>'),
+  Blog.new(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
+]
+
+# Create or open SQLite database
+database = SQLite3::Database.new('application.sqlite3')
+
+# Check if we need to create our table
+existing_tables = database.execute('SELECT name FROM sqlite_master WHERE type="table";')
+unless existing_tables.include?(['blogs'])
+  database.execute('CREATE TABLE blogs (title VARCHAR(30), content TEXT);')
 end
 
-# Set up YAML store
-store = set_up_blogs_store('blogs.yml')
+# Seed some blog data if none exists already
+if database.execute('SELECT COUNT(*) FROM blogs;') == [[0]]
+  SEED_BLOGS.each do |blog|
+    database.execute('INSERT INTO blogs (title, content) VALUES (?, ?)', [blog.title, blog.content])
+  end
+end
 
 app = lambda { |environment|
   puts 'Rack app got a request!'
@@ -39,14 +40,11 @@ app = lambda { |environment|
     response.content_type = 'text/html'
     response.finish do
       response.write '<ul>'
-      blog_data = store.transaction { store[:blogs] }
-      loop do
-        blog_data.each do |element|
-          response.write '<li>'
-          response.write "<strong>Title: #{CGI.escape_html(element.title)}</strong>, Content: #{CGI.escape_html(element.content)}"
-          response.write '</li>'
-        end
-        sleep(1)
+      blog_data = database.execute('SELECT title, content FROM blogs;')
+      blog_data.each do |title, content|
+        response.write '<li>'
+        response.write "<strong>Title: #{CGI.escape_html(title)}</strong>, Content: #{CGI.escape_html(content)}"
+        response.write '</li>'
       end
       response.write '</ul>'
     end
@@ -68,14 +66,13 @@ app = lambda { |environment|
   elsif request.post? && request.path == '/create-post'
     puts 'Got a new POST request!'
 
-    post = Blog.new
+    blog = Blog.new
     request.params.each do |name, value|
-      post[name] = value
+      blog[name] = value
     end
 
-    store.transaction do
-      store[:blogs] << post
-    end
+    # Write to database
+    database.execute('INSERT INTO blogs (title, content) VALUES (?, ?)', [blog.title, blog.content])
 
     # Prepare response
     response.redirect('/show-data', 303)
