@@ -13,16 +13,22 @@ SEED_BLOGS = [
 ]
 
 # Create or open SQLite database
-database = SQLite3::Database.new('application.sqlite3')
+database = SQLite3::Database.new('application.sqlite3', results_as_hash: true)
 
 # Check if we need to create our table
 existing_tables = database.execute('SELECT name FROM sqlite_master WHERE type="table";')
-unless existing_tables.include?(['blogs'])
+unless existing_tables.include?({ 'name' => 'blogs'})
   database.execute('CREATE TABLE blogs (title VARCHAR(30), content TEXT);')
 end
 
+# Alternative
+# table_exists = database.get_first_value('SELECT COUNT(*) FROM sqlite_master WHERE type="table" AND name="blogs";')
+# if table_exists == 0
+#   database.execute('CREATE TABLE blogs (title VARCHAR(30), content TEXT);')
+# end
+
 # Seed some blog data if none exists already
-if database.execute('SELECT COUNT(*) FROM blogs;') == [[0]]
+if database.get_first_value('SELECT COUNT(*) FROM blogs;') == 0
   SEED_BLOGS.each do |blog|
     database.execute('INSERT INTO blogs (title, content) VALUES (?, ?)', [blog.title, blog.content])
   end
@@ -40,10 +46,10 @@ app = lambda { |environment|
     response.content_type = 'text/html'
     response.finish do
       response.write '<ul>'
-      blog_data = database.execute('SELECT title, content FROM blogs;')
-      blog_data.each do |title, content|
+      blogs = database.execute('SELECT * FROM blogs;').map { |data| Blog.new(data) }
+      blogs.each do |blog|
         response.write '<li>'
-        response.write "<strong>Title: #{CGI.escape_html(title)}</strong>, Content: #{CGI.escape_html(content)}"
+        response.write "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
         response.write '</li>'
       end
       response.write '</ul>'
@@ -66,13 +72,10 @@ app = lambda { |environment|
   elsif request.post? && request.path == '/create-post'
     puts 'Got a new POST request!'
 
-    blog = Blog.new
-    request.params.each do |name, value|
-      blog[name] = value
-    end
+    blog = Blog.new(request.params)
 
     # Write to database
-    database.execute('INSERT INTO blogs (title, content) VALUES (?, ?)', [blog.title, blog.content])
+    database.execute('INSERT INTO blogs (title, content) VALUES (:title, :content)', blog.to_h)
 
     # Prepare response
     response.redirect('/show-data', 303)
