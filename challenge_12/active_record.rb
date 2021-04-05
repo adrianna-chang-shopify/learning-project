@@ -11,10 +11,25 @@ end
 # Database connection is only needed when we actually perform a query.
 # This allows us to define our Active Record class prior to actually establishing
 # the database connection.
+# NOTE: This will automatically create the file application.sqlite3 if it doesn't exist!
 ActiveRecord::Base.establish_connection(
   adapter:  "sqlite3",
   database: "application.sqlite3"
 )
+
+# Create the table if it doesn't exist, seed some data
+ActiveRecord::Schema.define do
+  unless table_exists?(:blogs)
+    create_table :blogs do |t|
+      t.string :title
+      t.text :content
+    end
+
+    # Seed some data
+    Blog.create!(title: 'My awesome blog!', content: 'my favourite HTML tags are <p> and <script>')
+    Blog.create!(title: 'Another cool blog!', content: 'my favourite HTML tags are <br> and <hr>')
+  end
+end
 
 app = lambda { |environment|
   puts 'Rack app got a request!'
