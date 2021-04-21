@@ -24,79 +24,61 @@ ActiveRecord::Schema.define do
   end
 end
 
-router = ActionDispatch::Routing::RouteSet.new
-router.draw do
-  get '/', to: -> environment {
-    response = Rack::Response.new
-    response.write '<p><strong>Submit a new Blog Post!</p></strong>'
-    response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-    response.write "<p><label>Blog Title: <input name='title'></label></p>"
-    response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
-    response.write '<p><button>Submit post</button></p>'
-    response.write '</form>'
-    response.content_type = 'text/html'
-    response.finish
-  }
-  get '/show-data', to: -> environment {
-    response = Rack::Response.new
-    response.content_type = 'text/html'
-    response.finish do
-      response.write '<ul>'
+class MyApp
+  def initialize
+    @router = ActionDispatch::Routing::RouteSet.new
+    draw_routes
+  end
 
-      Blog.all.each do |blog|
-        response.write '<li>'
-        response.write "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
-        response.write '</li>'
-      end
-      response.write '</ul>'
+  def call(environment)
+    @router.call(environment)
+  end
+
+  private
+
+  def draw_routes
+    @router.draw do
+      get '/', to: -> environment {
+        response = Rack::Response.new
+        response.write '<p><strong>Submit a new Blog Post!</p></strong>'
+        response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
+        response.write "<p><label>Blog Title: <input name='title'></label></p>"
+        response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
+        response.write '<p><button>Submit post</button></p>'
+        response.write '</form>'
+        response.content_type = 'text/html'
+        response.finish
+      }
+      get '/show-data', to: -> environment {
+        response = Rack::Response.new
+        response.content_type = 'text/html'
+        response.finish do
+          response.write '<ul>'
+    
+          Blog.all.each do |blog|
+            response.write '<li>'
+            response.write "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
+            response.write '</li>'
+          end
+          response.write '</ul>'
+        end
+      }
+      post 'create-post', to: -> environment {
+        response = Rack::Response.new
+        request = Rack::Request.new(environment)
+        puts 'Got a new POST request!'
+    
+        Blog.create!(request.params)
+        response.redirect('/show-data', 303)
+        response.finish
+      }
+      match '*path', via: :all, to: -> environment {
+        response = Rack::Response.new
+        response.write "Sorry, I don’t know what #{environment['PATH_INFO']} is"
+        response.content_type = 'text/plain'
+        response.status = 404
+        response.finish
+      }
     end
-  }
-  post 'create-post', to: -> environment {
-    response = Rack::Response.new
-    request = Rack::Request.new(environment)
-    puts 'Got a new POST request!'
-
-    Blog.create!(request.params)
-    response.redirect('/show-data', 303)
-    response.finish
-  }
-  match '*path', via: :all, to: -> environment {
-    response = Rack::Response.new
-    response.write "Sorry, I don’t know what #{environment['PATH_INFO']} is"
-    response.content_type = 'text/plain'
-    response.status = 404
-    response.finish
-  }
-end
-
-class LoggerMiddleware
-  def initialize(app, string)
-    @app = app
-    @string = string
-  end
-
-  def call(environment)
-    puts @string
-    @app.call(environment)
   end
 end
-
-class CharsetMiddleware
-  def initialize(app, charset: 'UTF-8')
-    @app = app
-    @charset = charset
-  end
-
-  def call(environment)
-    response = Rack::Response[*@app.call(environment)]
-    response.content_type = "#{response.content_type}; charset=#{@charset}"
-    response.finish
-  end
-end
-
-app = lambda { |environment| router.call(environment) }
-app = CharsetMiddleware.new(app)
-app = LoggerMiddleware.new(app, 'Rack app got a request!')
-
-# Run the Puma app server with our web application
-Rack::Handler::Puma.run(app, Port: 1234, Verbose: true)
