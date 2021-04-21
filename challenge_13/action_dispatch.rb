@@ -1,4 +1,5 @@
 ### Require dependencies
+require 'action_dispatch'
 require 'active_record'
 require 'cgi'
 require 'rack/handler/puma'
@@ -23,15 +24,21 @@ ActiveRecord::Schema.define do
   end
 end
 
-app = lambda { |environment|
-  puts 'Rack app got a request!'
-  # Build Rack request
-  request = Rack::Request.new(environment)
-
-  # Build Rack response
-  response = Rack::Response.new
-
-  if request.get? && request.path == '/show-data'
+router = ActionDispatch::Routing::RouteSet.new
+router.draw do
+  get '/', to: -> environment {
+    response = Rack::Response.new
+    response.write '<p><strong>Submit a new Blog Post!</p></strong>'
+    response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
+    response.write "<p><label>Blog Title: <input name='title'></label></p>"
+    response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
+    response.write '<p><button>Submit post</button></p>'
+    response.write '</form>'
+    response.content_type = 'text/html'
+    response.finish
+  }
+  get '/show-data', to: -> environment {
+    response = Rack::Response.new
     response.content_type = 'text/html'
     response.finish do
       response.write '<ul>'
@@ -43,31 +50,28 @@ app = lambda { |environment|
       end
       response.write '</ul>'
     end
-  elsif request.get? && request.path == '/'
-    response.write '<p><strong>Submit a new Blog Post!</p></strong>'
-    response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-    response.write "<p><label>Blog Title: <input name='title'></label></p>"
-    response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
-    response.write '<p><button>Submit post</button></p>'
-    response.write '</form>'
-
-    # Prepare response
-    response.content_type = 'text/html'
-    response.finish
-  elsif request.get?
-    response.write "method is #{request.request_method}, path is #{request.path}"
-    response.content_type = 'text/plain'
-    response.finish
-  elsif request.post? && request.path == '/create-post'
+  }
+  post 'create-post', to: -> environment {
+    response = Rack::Response.new
+    request = Rack::Request.new(environment)
     puts 'Got a new POST request!'
 
-    # The request params can be passed directly to the Blog's create method - neat!
-    blog = Blog.create!(request.params)
-
-    # Prepare response
+    Blog.create!(request.params)
     response.redirect('/show-data', 303)
     response.finish
-  end
+  }
+  match '*path', via: :all, to: -> environment {
+    response = Rack::Response.new
+    response.write "Sorry, I don’t know what #{environment['PATH_INFO']} is"
+    response.content_type = 'text/plain'
+    response.status = 404
+    response.finish
+  }
+end
+
+app = lambda { |environment|
+  puts 'Rack app got a request!'
+  router.call(environment) 
 }
 
 # Run the Puma app server with our web application
