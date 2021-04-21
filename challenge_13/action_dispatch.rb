@@ -69,10 +69,34 @@ router.draw do
   }
 end
 
-app = lambda { |environment|
-  puts 'Rack app got a request!'
-  router.call(environment) 
-}
+class LoggerMiddleware
+  def initialize(app, string)
+    @app = app
+    @string = string
+  end
+
+  def call(environment)
+    puts @string
+    @app.call(environment)
+  end
+end
+
+class CharsetMiddleware
+  def initialize(app, charset: 'UTF-8')
+    @app = app
+    @charset = charset
+  end
+
+  def call(environment)
+    response = Rack::Response[*@app.call(environment)]
+    response.content_type = "#{response.content_type}; charset=#{@charset}"
+    response.finish
+  end
+end
+
+app = lambda { |environment| router.call(environment) }
+app = CharsetMiddleware.new(app)
+app = LoggerMiddleware.new(app, 'Rack app got a request!')
 
 # Run the Puma app server with our web application
 Rack::Handler::Puma.run(app, Port: 1234, Verbose: true)
