@@ -2,7 +2,6 @@
 require 'action_dispatch'
 require 'active_record'
 require 'cgi'
-require 'rack/handler/puma'
 require 'rack'
 
 class Blog < ActiveRecord::Base; end
@@ -74,7 +73,8 @@ class MyApp
       }
       match '*path', via: :all, to: -> environment {
         response = Rack::Response.new
-        response.write "Sorry, I don’t know what #{environment['PATH_INFO']} is"
+        request = Rack::Request.new(environment)
+        response.write "Sorry, I don’t know what #{request.path_info} is"
         response.content_type = 'text/plain'
         response.status = 404
         response.finish
