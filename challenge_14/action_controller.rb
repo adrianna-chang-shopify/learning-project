@@ -1,4 +1,5 @@
 ### Require dependencies
+require 'action_controller'
 require 'action_dispatch'
 require 'active_record'
 require 'cgi'
@@ -23,6 +24,44 @@ ActiveRecord::Schema.define do
   end
 end
 
+class AppController < ActionController::Base
+  def root
+    response = ""
+    response += "<p><strong>Submit a new Blog Post!</p></strong>"
+    response += "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
+    response += "<p><label>Blog Title: <input name='title'></label></p>"
+    response += "<p><label>Content: <textarea name='content'></textarea></label></p>"
+    response += "<p><button>Submit post</button></p>"
+    response += "</form>"
+    render html: response.html_safe
+  end
+
+  def show_data
+    response = ""
+    response += "<ul>"
+
+    Blog.all.each do |blog|
+      response += "<li>"
+      response += "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
+      response += "</li>"
+    end
+    response += "</ul>"
+    render html: response.html_safe
+  end
+
+  def create_post
+    puts 'Got a new POST request!'
+
+    Blog.create!(params.permit(:title, :content))
+    redirect_to "/show-data", status: :see_other
+  end
+
+  def not_found
+    response = "Sorry, I don’t know what #{request.path_info} is"
+    render plain: response, status: :not_found
+  end
+end
+
 class MyApp
   def initialize
     @router = ActionDispatch::Routing::RouteSet.new
@@ -37,48 +76,10 @@ class MyApp
 
   def draw_routes
     @router.draw do
-      get '/', to: -> environment {
-        response = Rack::Response.new
-        response.write '<p><strong>Submit a new Blog Post!</p></strong>'
-        response.write "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-        response.write "<p><label>Blog Title: <input name='title'></label></p>"
-        response.write "<p><label>Content: <textarea name='content'></textarea></label></p>"
-        response.write '<p><button>Submit post</button></p>'
-        response.write '</form>'
-        response.content_type = 'text/html'
-        response.finish
-      }
-      get '/show-data', to: -> environment {
-        response = Rack::Response.new
-        response.content_type = 'text/html'
-        response.finish do
-          response.write '<ul>'
-    
-          Blog.all.each do |blog|
-            response.write '<li>'
-            response.write "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
-            response.write '</li>'
-          end
-          response.write '</ul>'
-        end
-      }
-      post 'create-post', to: -> environment {
-        response = Rack::Response.new
-        request = Rack::Request.new(environment)
-        puts 'Got a new POST request!'
-    
-        Blog.create!(request.params)
-        response.redirect('/show-data', 303)
-        response.finish
-      }
-      match '*path', via: :all, to: -> environment {
-        response = Rack::Response.new
-        request = Rack::Request.new(environment)
-        response.write "Sorry, I don’t know what #{request.path_info} is"
-        response.content_type = 'text/plain'
-        response.status = 404
-        response.finish
-      }
+      get '/', to: AppController.action(:root)
+      get '/show-data', to: AppController.action(:show_data)
+      post 'create-post', to: AppController.action(:create_post)
+      match '*path', via: :all, to: AppController.action(:not_found)
     end
   end
 end

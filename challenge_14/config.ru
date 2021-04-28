@@ -1,4 +1,4 @@
-require_relative 'action_dispatch'
+require_relative 'action_controller'
 
 class LoggerMiddleware
   def initialize(app, string)
