@@ -20,7 +20,7 @@ class CharsetMiddleware
 
   def call(environment)
     response = Rack::Response[*@app.call(environment)]
-    response.content_type = "#{response.content_type}; charset=#{@charset}" unless response.media_type_params.any?
+    response.content_type = "#{response.content_type}; charset=#{@charset}" unless response.media_type_params["charset"].present?
     response.finish
   end
 end
