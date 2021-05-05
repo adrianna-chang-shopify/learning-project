@@ -2,7 +2,6 @@
 require 'action_controller'
 require 'action_dispatch'
 require 'active_record'
-require 'cgi'
 
 class Blog < ActiveRecord::Base; end
 
@@ -39,11 +38,13 @@ class AppController < ActionController::Base
   def show_data
     @blogs = Blog.all
 
+    # Note! ERB interpolated HTML is escaped unless marked as HTML safe / raw helper used
+
     erb_response = <<~ERB
       <ul>
       <% @blogs.each do |blog| %>
         <li>
-          <strong>Title: <%= CGI.escape_html(blog.title) %> </strong>, Content: <%= CGI.escape_html(blog.content) %>
+          <strong>Title: <%= blog.title %> </strong>, Content: <%= blog.content %>
         </li>
       <% end %>
       </ul>
