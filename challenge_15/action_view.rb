@@ -25,41 +25,47 @@ end
 
 class AppController < ActionController::Base
   def root
-    response_body = ""
-    response_body += "<p><strong>Submit a new Blog Post!</p></strong>"
-    response_body += "<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>"
-    response_body += "<p><label>Blog Title: <input name='title'></label></p>"
-    response_body += "<p><label>Content: <textarea name='content'></textarea></label></p>"
-    response_body += "<p><button>Submit post</button></p>"
-    response_body += "</form>"
-    render html: response_body.html_safe
+    erb_response = <<~ERB
+      <p><strong>Submit a new Blog Post!</p></strong>
+      <form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>
+      <label>Blog Title: <input name='title'></label></p>
+      <p><label>Content: <textarea name='content'></textarea></label></p>
+      <p><button>Submit post</button></p>
+      </form>
+    ERB
+    render inline: erb_response
   end
 
   def show_data
-    response_body = ""
-    response_body += "<ul>"
+    @blogs = Blog.all
 
-    Blog.all.each do |blog|
-      response_body += "<li>"
-      response_body += "<strong>Title: #{CGI.escape_html(blog.title)}</strong>, Content: #{CGI.escape_html(blog.content)}"
-      response_body += "</li>"
-    end
-    response_body += "</ul>"
-    render html: response_body.html_safe
+    erb_response = <<~ERB
+      <ul>
+      <% @blogs.each do |blog| %>
+        <li>
+          <strong>Title: <%= CGI.escape_html(blog.title) %> </strong>, Content: <%= CGI.escape_html(blog.content) %>
+        </li>
+      <% end %>
+      </ul>
+    ERB
+    render inline: erb_response
   end
 
   def create_post
     puts 'Got a new POST request!'
 
-    # Alternatively, we can explicitly grab the params we want to pass to the #create method
     # Blog.create!(title: params[:title], content: params[:content])
     Blog.create!(params.permit(:title, :content))
     redirect_to "/show-data", status: :see_other
   end
 
   def not_found
-    response_body = "Sorry, I don’t know what #{request.path_info} is"
-    render plain: response_body, status: :not_found
+    @request_path = request.path_info
+
+    erb_response = <<~ERB
+      Sorry, I don’t know what <%= @request_path %> is 😢
+    ERB
+    render inline: erb_response, status: :not_found
   end
 end
 
