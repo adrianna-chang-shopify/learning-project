@@ -26,8 +26,9 @@ end
 ActionController::Base.append_view_path('views')
 
 class AppController < ActionController::Base
-  # def root
-  # end
+  # We could actually omit this, and ActionController would still render our template :)
+  def root
+  end
 
   def show_data
     @blogs = Blog.all

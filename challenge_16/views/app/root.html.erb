@@ -1,6 +1,18 @@
-<p><strong>Submit a new Blog Post!</p></strong>
-<form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>
-<label>Blog Title: <input name='title'></label></p>
-<p><label>Content: <textarea name='content'></textarea></label></p>
-<p><button>Submit post</button></p>
-</form>
+<%= tag.p do %>
+  <%= tag.strong do %>
+    Submit a new Blog Post!
+  <% end %>
+<% end %>
+<%= form_tag("/create-post") do %>
+  <%= tag.p do %>
+    <%= label_tag do %>
+      Blog Title: <%= text_field_tag "title" %>
+    <% end %>
+  <% end %>
+  <%= tag.p do %>
+    <%= label_tag do %>
+      Content: <%= text_area_tag "content" %>
+    <% end %>
+  <% end %>
+  <%= button_tag "Submit post" %>
+<% end %>

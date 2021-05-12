@@ -1,7 +1,10 @@
-<ul>
-<% @blogs.each do |blog| %>
-  <li>
-    <strong>Title: <%= blog.title %> </strong>, Content: <%= blog.content %>
-  </li>
+<%= tag.ul do %>
+  <% @blogs.each do |blog| %>
+    <%= tag.li do %>
+      <%= tag.strong do %>
+        Title: <%= blog.title %>,
+      <% end %>
+      Content: <%= blog.content %>
+    <% end %>
+  <% end %>
 <% end %>
-</ul>
