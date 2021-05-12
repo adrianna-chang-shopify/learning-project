@@ -22,51 +22,26 @@ ActiveRecord::Schema.define do
   end
 end
 
+# Global configuration for view paths
+ActionController::Base.append_view_path('views')
+
 class AppController < ActionController::Base
-  def root
-    erb_response = <<~ERB
-      <p><strong>Submit a new Blog Post!</p></strong>
-      <form method='post' enctype='application/x-www-form-urlencoded' action='/create-post'>
-      <label>Blog Title: <input name='title'></label></p>
-      <p><label>Content: <textarea name='content'></textarea></label></p>
-      <p><button>Submit post</button></p>
-      </form>
-    ERB
-    render inline: erb_response
-  end
+  # def root
+  # end
 
   def show_data
     @blogs = Blog.all
-
-    # Note! ERB interpolated HTML is escaped unless marked as HTML safe / raw helper used
-
-    erb_response = <<~ERB
-      <ul>
-      <% @blogs.each do |blog| %>
-        <li>
-          <strong>Title: <%= blog.title %> </strong>, Content: <%= blog.content %>
-        </li>
-      <% end %>
-      </ul>
-    ERB
-    render inline: erb_response
   end
 
   def create_post
     puts 'Got a new POST request!'
-
-    # Blog.create!(title: params[:title], content: params[:content])
     Blog.create!(params.permit(:title, :content))
     redirect_to "/show-data", status: :see_other
   end
 
   def not_found
     @request_path = request.path_info
-
-    erb_response = <<~ERB
-      Sorry, I don’t know what <%= @request_path %> is 😢
-    ERB
-    render inline: erb_response, status: :not_found
+    render status: :not_found
   end
 end
 
