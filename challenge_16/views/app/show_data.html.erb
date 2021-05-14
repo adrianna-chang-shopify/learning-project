@@ -1,9 +1,7 @@
 <%= tag.ul do %>
   <% @blogs.each do |blog| %>
     <%= tag.li do %>
-      <%= tag.strong do %>
-        Title: <%= blog.title %>,
-      <% end %>
+      <%= tag.strong do %>Title: <%= blog.title %><% end %>,
       Content: <%= blog.content %>
     <% end %>
   <% end %>
