@@ -59,10 +59,10 @@ class MyApp
 
   def draw_routes
     @router.draw do
-      root to: AppController.action(:root)
-      get '/show-data', to: AppController.action(:show_data)
-      post 'create-post', to: AppController.action(:create_post)
-      match '*path', via: :all, to: AppController.action(:not_found)
+      root to: 'app#root'
+      get '/show-data', to: 'app#show_data'
+      post 'create-post', to: 'app#create_post'
+      match '*path', via: :all, to: 'app#not_found'
     end
   end
 end
