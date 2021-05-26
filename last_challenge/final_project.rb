@@ -59,9 +59,7 @@ class MyApp
 
   def draw_routes
     @router.draw do
-      root to: 'blogs#new'
-      get '/blogs', to: 'blogs#index'
-      post '/blogs', to: 'blogs#create'
+      resources :blogs
       match '*path', via: :all, to: 'blogs#not_found'
     end
   end
