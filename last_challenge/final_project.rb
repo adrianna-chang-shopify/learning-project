@@ -38,7 +38,9 @@ class BlogsController < ActionController::Base
     Blog.create!(params.permit(:title, :content))
     redirect_to "/blogs", status: :see_other
   end
+end
 
+class PagesController < ActionController::Base
   def not_found
     @request_path = request.path_info
     render status: :not_found
@@ -48,19 +50,13 @@ end
 class MyApp
   def initialize
     @router = ActionDispatch::Routing::RouteSet.new
-    draw_routes
+    @router.draw do
+      resources :blogs
+      match '*path', via: :all, to: 'pages#not_found'
+    end
   end
 
   def call(environment)
     @router.call(environment)
-  end
-
-  private
-
-  def draw_routes
-    @router.draw do
-      resources :blogs
-      match '*path', via: :all, to: 'blogs#not_found'
-    end
   end
 end
