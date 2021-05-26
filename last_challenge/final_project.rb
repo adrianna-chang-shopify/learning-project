@@ -25,7 +25,7 @@ end
 # Global configuration for view paths
 ActionController::Base.append_view_path('views')
 
-class AppController < ActionController::Base
+class BlogsController < ActionController::Base
   def root
   end
 
@@ -59,10 +59,10 @@ class MyApp
 
   def draw_routes
     @router.draw do
-      root to: 'app#root'
-      get '/show-data', to: 'app#show_data'
-      post 'create-post', to: 'app#create_post'
-      match '*path', via: :all, to: 'app#not_found'
+      root to: 'blogs#root'
+      get '/show-data', to: 'blogs#show_data'
+      post 'create-post', to: 'blogs#create_post'
+      match '*path', via: :all, to: 'blogs#not_found'
     end
   end
 end
