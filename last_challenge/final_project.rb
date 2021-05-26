@@ -26,17 +26,17 @@ end
 ActionController::Base.append_view_path('views')
 
 class BlogsController < ActionController::Base
-  def root
+  def new
   end
 
-  def show_data
+  def index
     @blogs = Blog.all
   end
 
-  def create_post
+  def create
     puts 'Got a new POST request!'
     Blog.create!(params.permit(:title, :content))
-    redirect_to "/show-data", status: :see_other
+    redirect_to "/blogs", status: :see_other
   end
 
   def not_found
@@ -59,9 +59,9 @@ class MyApp
 
   def draw_routes
     @router.draw do
-      root to: 'blogs#root'
-      get '/show-data', to: 'blogs#show_data'
-      post 'create-post', to: 'blogs#create_post'
+      root to: 'blogs#new'
+      get '/blogs', to: 'blogs#index'
+      post '/blogs', to: 'blogs#create'
       match '*path', via: :all, to: 'blogs#not_found'
     end
   end
