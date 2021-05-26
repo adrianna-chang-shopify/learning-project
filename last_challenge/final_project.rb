@@ -47,16 +47,9 @@ class PagesController < ActionController::Base
   end
 end
 
-class MyApp
-  def initialize
-    @router = ActionDispatch::Routing::RouteSet.new
-    @router.draw do
-      resources :blogs
-      match '*path', via: :all, to: 'pages#not_found'
-    end
-  end
-
-  def call(environment)
-    @router.call(environment)
-  end
+# Top level entry point to Rack application is the RouteSet!
+MyApp = ActionDispatch::Routing::RouteSet.new
+MyApp.draw do
+  resources :blogs
+  match '*path', via: :all, to: 'pages#not_found'
 end

@@ -14,4 +14,4 @@ end
 
 use LoggerMiddleware, 'Rack app got a request!'
 
-run MyApp.new
+run MyApp
