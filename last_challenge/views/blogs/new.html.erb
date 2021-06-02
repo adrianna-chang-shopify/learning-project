@@ -1,0 +1,20 @@
+<%= tag.p do %>
+  <%= tag.strong do %>
+    Submit a new Blog Post!
+  <% end %>
+<% end %>
+<%= form_tag("/blogs") do %>
+  <%= tag.p do %>
+    <%= label_tag do %>
+      Blog Title: <%= text_field_tag "title" %>
+    <% end %>
+  <% end %>
+  <%= tag.p do %>
+    <%= label_tag do %>
+      Content: <%= text_area_tag "content" %>
+    <% end %>
+  <% end %>
+  <%# #button_tag is an alternative option here, but #submit_tag is preferred when we're not %>
+  <%# embedding rich content / other tags within the button %>
+  <%= submit_tag "Submit post" %>
+<% end %>
