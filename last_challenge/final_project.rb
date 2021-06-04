@@ -36,7 +36,7 @@ class BlogsController < ActionController::Base
   def create
     puts 'Got a new POST request!'
     Blog.create!(params.permit(:title, :content))
-    redirect_to "/blogs", status: :see_other
+    redirect_to blogs_url, status: :see_other
   end
 end
 
@@ -49,6 +49,7 @@ end
 
 # Top level entry point to Rack application is the RouteSet!
 MyApp = ActionDispatch::Routing::RouteSet.new
+BlogsController.include(MyApp.url_helpers)
 MyApp.draw do
   resources :blogs
   match '*path', via: :all, to: 'pages#not_found'
