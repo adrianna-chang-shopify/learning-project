@@ -3,7 +3,7 @@
     Submit a new Blog Post!
   <% end %>
 <% end %>
-<%= form_tag("/blogs") do %>
+<%= form_tag(MyApp.url_helpers.blogs_path) do %>
   <%= tag.p do %>
     <%= label_tag do %>
       Blog Title: <%= text_field_tag "title" %>

@@ -36,7 +36,9 @@ class BlogsController < ActionController::Base
   def create
     puts 'Got a new POST request!'
     Blog.create!(params.permit(:title, :content))
-    redirect_to "/blogs", status: :see_other
+    # Since we're accessing the URL helpers right on the module, we need to specify
+    # both the host and port so that the full (absolute) URL can be constructed properly
+    redirect_to MyApp.url_helpers.blogs_url(host: request.host, port: request.port), status: :see_other
   end
 end
 
@@ -49,6 +51,10 @@ end
 
 # Top level entry point to Rack application is the RouteSet!
 MyApp = ActionDispatch::Routing::RouteSet.new
+# Can mix the module with URL helpers right into the controller,
+# or access them as singleton methods on the module returned by
+# RouteSet#url_helpers
+# BlogsController.include(MyApp.url_helpers)
 MyApp.draw do
   resources :blogs
   match '*path', via: :all, to: 'pages#not_found'
